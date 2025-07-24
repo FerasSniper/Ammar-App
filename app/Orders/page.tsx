@@ -3,7 +3,7 @@
 
 import React, { useState, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   Search,
   Calendar,
@@ -53,11 +53,27 @@ export interface NavigationItem {
 
 export default function Orders() {
   const pathname = usePathname();
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState("newest");
   const [statusFilter, setStatusFilter] = useState("all");
   const [userImage, setUserImage] = useState<string | null>(null);
-  const [userName] = useState("Ammar Nasser");
+  const [userName, setUserName] = useState<string>("");
+
+  // Load user name from localStorage on mount
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const user = localStorage.getItem("user");
+      if (user) {
+        try {
+          const parsed = JSON.parse(user);
+          setUserName(parsed.name || "");
+        } catch (e) {
+          setUserName("");
+        }
+      }
+    }
+  }, []);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -203,6 +219,12 @@ export default function Orders() {
     }
   }
 
+  // Logout functionality
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    router.push('/');
+  };
+
   // Filter and sort orders
   const filteredOrders = orders
     .filter((order) => {
@@ -301,7 +323,10 @@ export default function Orders() {
 
           {/* Logout Button */}
           <div className="p-4 border-t border-gray-200">
-            <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-colors">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-colors"
+            >
               <LogOut className="w-5 h-5" />
               <span className="font-medium">Logout</span>
             </button>

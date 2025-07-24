@@ -3,7 +3,7 @@
 
 import React, { useState, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"; // Added useRouter
 import {
   Search,
   Trash2,
@@ -22,15 +22,15 @@ import {
   AlertTriangle,
   CheckCircle,
   User,
-} from "lucide-react"
+} from "lucide-react";
 
 interface Employee {
-  id: string
-  name: string
-  telegramHandle: string
-  role: string
-  lastNotified: string
-  isActive: boolean
+  id: string;
+  name: string;
+  telegramHandle: string;
+  role: string;
+  lastNotified: string;
+  isActive: boolean;
 }
 
 export interface NavigationItem {
@@ -42,14 +42,30 @@ export interface NavigationItem {
 
 export default function TeSettings() {
   const pathname = usePathname();
+  const router = useRouter(); // Initialize router for navigation
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedItems, setSelectedItems] = useState<string[]>([])
-  const [userImage, setUserImage] = useState<string | null>(null)
-  const [userName] = useState("Ammar Nasser")
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [showRemoveAlert, setShowRemoveAlert] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [userImage, setUserImage] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>("");
+
+  // Load user name from localStorage on mount
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const user = localStorage.getItem("user");
+      if (user) {
+        try {
+          const parsed = JSON.parse(user);
+          setUserName(parsed.name || "");
+        } catch (e) {
+          setUserName("");
+        }
+      }
+    }
+  }, []);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showRemoveAlert, setShowRemoveAlert] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sample employees data
   const [employees, setEmployees] = useState<Employee[]>([
@@ -93,21 +109,21 @@ export default function TeSettings() {
       lastNotified: "2025-01-18 11:30",
       isActive: true,
     },
-  ])
+  ]);
 
   // New employee form state
   const [newEmployee, setNewEmployee] = useState({
     name: "",
     telegramHandle: "",
     role: "",
-  })
+  });
 
   const navigationItems: NavigationItem[] = [
-      { id: "dashboard", label: "New Requests", icon: <BarChart3 className="w-5 h-5" />, href: "/dashboard" },
-      { id: "Register", label: "Register", icon: <Users className="w-5 h-5" />, href: "/Register" },
-      { id: "Orders", label: "Orders", icon: <FileText className="w-5 h-5" />, href: "/Orders" },
-      { id: "Te-Settings", label: "Settings", icon: <Settings className="w-5 h-5" />, href: "/Te-Settings" },
-    ];
+    { id: "dashboard", label: "New Requests", icon: <BarChart3 className="w-5 h-5" />, href: "/dashboard" },
+    { id: "Register", label: "Register", icon: <Users className="w-5 h-5" />, href: "/Register" },
+    { id: "Orders", label: "Orders", icon: <FileText className="w-5 h-5" />, href: "/Orders" },
+    { id: "Te-Settings", label: "Settings", icon: <Settings className="w-5 h-5" />, href: "/Te-Settings" },
+  ];
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -118,25 +134,25 @@ export default function TeSettings() {
   };
 
   const handleSelectItem = (id: string) => {
-    setSelectedItems((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]))
-  }
+    setSelectedItems((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+  };
 
   const handleSelectAll = () => {
-    const filteredIds = filteredEmployees.map((employee) => employee.id)
-    setSelectedItems((prev) => (prev.length === filteredIds.length ? [] : filteredIds))
-  }
+    const filteredIds = filteredEmployees.map((employee) => employee.id);
+    setSelectedItems((prev) => (prev.length === filteredIds.length ? [] : filteredIds));
+  };
 
   const handleRemoveSelected = () => {
     if (selectedItems.length > 0) {
-      setShowRemoveAlert(true)
+      setShowRemoveAlert(true);
     }
-  }
+  };
 
   const confirmRemove = () => {
-    setEmployees((prev) => prev.filter((employee) => !selectedItems.includes(employee.id)))
-    setSelectedItems([])
-    setShowRemoveAlert(false)
-  }
+    setEmployees((prev) => prev.filter((employee) => !selectedItems.includes(employee.id)));
+    setSelectedItems([]);
+    setShowRemoveAlert(false);
+  };
 
   const handleAddEmployee = () => {
     if (newEmployee.name && newEmployee.telegramHandle && newEmployee.role) {
@@ -149,52 +165,58 @@ export default function TeSettings() {
         role: newEmployee.role,
         lastNotified: "Never",
         isActive: true,
-      }
-      setEmployees((prev) => [...prev, employee])
-      setNewEmployee({ name: "", telegramHandle: "", role: "" })
-      setShowAddModal(false)
+      };
+      setEmployees((prev) => [...prev, employee]);
+      setNewEmployee({ name: "", telegramHandle: "", role: "" });
+      setShowAddModal(false);
     }
-  }
+  };
 
   const toggleEmployeeStatus = (id: string) => {
     setEmployees((prev) =>
       prev.map((employee) => (employee.id === id ? { ...employee, isActive: !employee.isActive } : employee)),
-    )
-  }
+    );
+  };
 
   const filteredEmployees = employees.filter(
     (employee) =>
       employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.telegramHandle.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.role.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  );
 
   const formatLastNotified = (dateTime: string) => {
-    if (dateTime === "Never") return "Never"
-    const date = new Date(dateTime)
+    if (dateTime === "Never") return "Never";
+    const date = new Date(dateTime);
     return date.toLocaleString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    })
-  }
+    });
+  };
 
   const getRoleIcon = (role: string) => {
     switch (role.toLowerCase()) {
       case "project manager":
-        return <Shield className="w-4 h-4" />
+        return <Shield className="w-4 h-4" />;
       case "senior developer":
       case "developer":
-        return <User className="w-4 h-4" />
+        return <User className="w-4 h-4" />;
       case "design lead":
       case "designer":
-        return <User className="w-4 h-4" />
+        return <User className="w-4 h-4" />;
       default:
-        return <User className="w-4 h-4" />
+        return <User className="w-4 h-4" />;
     }
-  }
+  };
+
+  // Logout function to clear localStorage and redirect to login page
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    router.push("/"); // Redirect to login page (assumed to be at "/")
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -266,7 +288,10 @@ export default function TeSettings() {
 
           {/* Logout Button */}
           <div className="p-4 border-t border-gray-200">
-            <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-colors">
+            <button
+              onClick={handleLogout} // Added logout functionality
+              className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-colors"
+            >
               <LogOut className="w-5 h-5" />
               <span className="font-medium">Logout</span>
             </button>
@@ -533,8 +558,8 @@ export default function TeSettings() {
               </button>
               <button
                 onClick={() => {
-                  setShowAddModal(false)
-                  setNewEmployee({ name: "", telegramHandle: "", role: "" })
+                  setShowAddModal(false);
+                  setNewEmployee({ name: "", telegramHandle: "", role: "" });
                 }}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >

@@ -1,8 +1,9 @@
 // app/dashboard/page.tsx
 "use client";
-import React, { useState, useRef } from "react";
+
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   Search,
   Trash2,
@@ -33,16 +34,12 @@ export interface NavigationItem {
 }
 
 export default function Dashboard() {
+  const router = useRouter();
   const pathname = usePathname();
+
+  // Dashboard state
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  const [userImage, setUserImage] = useState<string | null>(null);
-  const [userName] = useState("Ammar Nasser");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Sample data
   const [people, setPeople] = useState<Person[]>([
     { id: "1", name: "Ahmed Al‑Rashid",  mobile: "+966501234567", email: "ahmed@example.com",  registeredAt: "2025‑01‑15" },
     { id: "2", name: "Sara Al‑Mahmoud",  mobile: "+966502345678", email: "sara@example.com",   registeredAt: "2025‑01‑14" },
@@ -50,61 +47,109 @@ export default function Dashboard() {
     { id: "4", name: "Fatima Al‑Khalil", mobile: "+966504567890", email: "fatima@example.com", registeredAt: "2025‑01‑12" },
     { id: "5", name: "Omar Al‑Fahd",    mobile: "+966505678901", email: "omar@example.com",    registeredAt: "2025‑01‑11" },
   ]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const navigationItems: NavigationItem[] = [
-    { id: "dashboard", label: "New Requests", icon: <BarChart3  className="w-5 h-5" />, href: "/dashboard" },
-    { id: "Register"    , label: "Register"    , icon: <Users      className="w-5 h-5" />, href: "/Register"     },
-    { id: "Orders"      , label: "Orders"      , icon: <FileText   className="w-5 h-5" />, href: "/Orders"       },
-    { id: "Te-Settings"    , label: "Settings"    , icon: <Settings   className="w-5 h-5" />, href: "/Te-Settings"     },
-  ];
+  // User profile state
+  const [userName, setUserName] = useState<string>("");
+  const [userId, setUserId] = useState<string>("");
+  const [userImage, setUserImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const filteredPeople = people.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.mobile.includes(searchTerm)
-  );
+  // On mount, load user info from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setUserName(parsed.name || "");
+        setUserId(parsed.id?.toString() || "");
+        setUserImage(parsed.avatar || null);
+      }
+    }
+  }, []);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => setUserImage(ev.target?.result as string);
-    reader.readAsDataURL(file);
-  };
-
+  // Handlers for table selection & refresh
   const handleSelectItem = (id: string) => {
     setSelectedItems(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
   };
-
   const handleSelectAll = () => {
     const allIds = filteredPeople.map(p => p.id);
     setSelectedItems(prev =>
       prev.length === allIds.length ? [] : allIds
     );
   };
-
   const handleRemoveSelected = () => {
     setPeople(prev => prev.filter(p => !selectedItems.includes(p.id)));
     setSelectedItems([]);
   };
-
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await new Promise(r => setTimeout(r, 800));
     setIsRefreshing(false);
   };
 
+  // Upload avatar handler
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+
+    const formData = new FormData();
+    formData.append("avatar", file);
+    formData.append("userId", userId);
+
+    try {
+      const res = await fetch("/api/upload-avatar", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Upload failed");
+
+      // Update preview & localStorage
+      setUserImage(data.avatar);
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        parsed.avatar = data.avatar;
+        localStorage.setItem("user", JSON.stringify(parsed));
+      }
+    } catch (err) {
+      console.error("Avatar upload failed:", err);
+      alert("Could not upload avatar. Please try again.");
+    }
+  };
+
+  // Logout handler
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    router.push("/");
+  };
+
+  // Filter logic
+  const filteredPeople = people.filter(p =>
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.mobile.includes(searchTerm)
+  );
+
+  // Navigation items
+  const navigationItems: NavigationItem[] = [
+    { id: "dashboard", label: "New Requests", icon: <BarChart3 className="w-5 h-5" />, href: "/dashboard" },
+    { id: "register",  label: "Register",     icon: <Users     className="w-5 h-5" />, href: "/Register"  },
+    { id: "orders",    label: "Orders",       icon: <FileText  className="w-5 h-5" />, href: "/Orders"    },
+    { id: "settings",  label: "Settings",     icon: <Settings  className="w-5 h-5" />, href: "/Te-Settings" },
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <aside
-        className={`
+      <aside className={`
           fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl
           transform transition-transform duration-300
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0
-        `}
-      >
+        `}>
         <button
           onClick={() => setSidebarOpen(false)}
           className="absolute top-4 right-4 lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -164,13 +209,16 @@ export default function Dashboard() {
           })}
         </nav>
 
-          {/* Logout Button */}
-          <div className="p-4 border-t border-gray-200">
-            <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-colors">
-              <LogOut className="w-5 h-5" />
-              <span className="font-medium">Logout</span>
-            </button>
-          </div>
+        {/* Logout */}
+        <div className="p-4 border-t border-gray-200">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="font-medium">Logout</span>
+          </button>
+        </div>
       </aside>
 
       {/* Main area */}
