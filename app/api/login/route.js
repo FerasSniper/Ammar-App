@@ -15,7 +15,7 @@ export async function POST(request) {
 
     // Lookup user
     const [rows] = await pool.query(
-      'SELECT id, name, password, mobile FROM users WHERE name = ?',
+      'SELECT id, name, password, mobile, avatar FROM users WHERE name = ?',
       [name]
     );
 
@@ -24,7 +24,7 @@ export async function POST(request) {
     }
 
     const user = rows[0];
-    return NextResponse.json({ id: user.id, name: user.name, mobile: user.mobile });
+    return NextResponse.json({ id: user.id, name: user.name, mobile: user.mobile, avatar: user.avatar || null });
   } catch (err) {
     console.error('Login API error:', err);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });

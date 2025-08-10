@@ -1,7 +1,7 @@
 // app/Te-Settings/page.tsx
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation"; // Added useRouter
 import {
@@ -48,9 +48,10 @@ export default function TeSettings() {
   const [userImage, setUserImage] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>("");
 
-  // Load user name from localStorage on mount
-  React.useEffect(() => {
+  // Load user name and employees data from localStorage on mount
+  useEffect(() => {
     if (typeof window !== "undefined") {
+      // Load user name
       const user = localStorage.getItem("user");
       if (user) {
         try {
@@ -60,15 +61,28 @@ export default function TeSettings() {
           setUserName("");
         }
       }
+
+      // Load employees data
+      const savedEmployees = localStorage.getItem("employees");
+      if (savedEmployees) {
+        try {
+          const parsed = JSON.parse(savedEmployees);
+          setEmployees(parsed);
+        } catch (e) {
+          // If parsing fails, use default employees
+          setEmployees(defaultEmployees);
+        }
+      }
     }
   }, []);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showRemoveAlert, setShowRemoveAlert] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sample employees data
-  const [employees, setEmployees] = useState<Employee[]>([
+  // Default employees data
+  const defaultEmployees: Employee[] = [
     {
       id: "1",
       name: "Ahmed Al-Rashid",
@@ -109,7 +123,10 @@ export default function TeSettings() {
       lastNotified: "2025-01-18 11:30",
       isActive: true,
     },
-  ]);
+  ];
+
+  // Employees data with localStorage persistence
+  const [employees, setEmployees] = useState<Employee[]>(defaultEmployees);
 
   // New employee form state
   const [newEmployee, setNewEmployee] = useState({
@@ -149,33 +166,59 @@ export default function TeSettings() {
   };
 
   const confirmRemove = () => {
-    setEmployees((prev) => prev.filter((employee) => !selectedItems.includes(employee.id)));
+    setEmployees((prev) => {
+      const updatedEmployees = prev.filter((employee) => !selectedItems.includes(employee.id));
+
+      // Save to localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("employees", JSON.stringify(updatedEmployees));
+      }
+
+      return updatedEmployees;
+    });
     setSelectedItems([]);
     setShowRemoveAlert(false);
   };
 
   const handleAddEmployee = () => {
-    if (newEmployee.name && newEmployee.telegramHandle && newEmployee.role) {
-      const employee: Employee = {
-        id: Date.now().toString(),
-        name: newEmployee.name,
-        telegramHandle: newEmployee.telegramHandle.startsWith("@")
-          ? newEmployee.telegramHandle
-          : `@${newEmployee.telegramHandle}`,
-        role: newEmployee.role,
-        lastNotified: "Never",
-        isActive: true,
-      };
-      setEmployees((prev) => [...prev, employee]);
-      setNewEmployee({ name: "", telegramHandle: "", role: "" });
-      setShowAddModal(false);
-    }
+    if (!newEmployee.name || !newEmployee.telegramHandle || !newEmployee.role) return;
+
+    const employee: Employee = {
+      id: Date.now().toString(),
+      name: newEmployee.name,
+      telegramHandle: newEmployee.telegramHandle,
+      role: newEmployee.role,
+      lastNotified: "Never",
+      isActive: true,
+    };
+
+    setEmployees((prev) => {
+      const updatedEmployees = [...prev, employee];
+
+      // Save to localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("employees", JSON.stringify(updatedEmployees));
+      }
+
+      return updatedEmployees;
+    });
+    setNewEmployee({ name: "", telegramHandle: "", role: "" });
+    setShowAddModal(false);
   };
 
   const toggleEmployeeStatus = (id: string) => {
-    setEmployees((prev) =>
-      prev.map((employee) => (employee.id === id ? { ...employee, isActive: !employee.isActive } : employee)),
-    );
+    setEmployees((prev) => {
+      const updatedEmployees = prev.map((employee) =>
+        employee.id === id ? { ...employee, isActive: !employee.isActive } : employee
+      );
+
+      // Save to localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("employees", JSON.stringify(updatedEmployees));
+      }
+
+      return updatedEmployees;
+    });
   };
 
   const filteredEmployees = employees.filter(

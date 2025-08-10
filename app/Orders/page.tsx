@@ -1,7 +1,7 @@
 // app/Orders/page.tsx
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -78,68 +78,21 @@ export default function Orders() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sample orders data
-  const [orders, setOrders] = useState<Order[]>([
-    {
-      id: "1",
-      orderId: "ORD-2025-001",
-      userName: "Ahmed Al-Rashid",
-      mobile: "+966501234567",
-      email: "ahmed@example.com",
-      insertedDate: "2025-01-15",
-      status: "In-review",
-      prices: { basic: 15000, standard: 25000, premium: 35000, deluxe: 45000, ultimate: 60000 },
-      clientActivity: "green",
-      lastActivityUpdate: "2025-01-15 14:30",
-    },
-    {
-      id: "2",
-      orderId: "ORD-2025-002",
-      userName: "Sara Al-Mahmoud",
-      mobile: "+966502345678",
-      email: "sara@example.com",
-      insertedDate: "2025-01-14",
-      status: "Approved",
-      prices: { basic: 18000, standard: 28000, premium: 38000, deluxe: 48000, ultimate: 65000 },
-      clientActivity: "yellow",
-      lastActivityUpdate: "2025-01-14 16:45",
-    },
-    {
-      id: "3",
-      orderId: "ORD-2025-003",
-      userName: "Mohammed Al-Zahra",
-      mobile: "+966503456789",
-      email: "mohammed@example.com",
-      insertedDate: "2025-01-13",
-      status: "Canceled",
-      prices: { basic: 12000, standard: 22000, premium: 32000, deluxe: 42000, ultimate: 55000 },
-      clientActivity: "red",
-      lastActivityUpdate: "2025-01-13 10:20",
-    },
-    {
-      id: "4",
-      orderId: "ORD-2025-004",
-      userName: "Fatima Al-Khalil",
-      mobile: "+966504567890",
-      email: "fatima@example.com",
-      insertedDate: "2025-01-12",
-      status: "In-review",
-      prices: { basic: 20000, standard: 30000, premium: 40000, deluxe: 50000, ultimate: 70000 },
-      clientActivity: "none",
-      lastActivityUpdate: "2025-01-12 09:15",
-    },
-    {
-      id: "5",
-      orderId: "ORD-2025-005",
-      userName: "Omar Al-Fahd",
-      mobile: "+966505678901",
-      email: "omar@example.com",
-      insertedDate: "2025-01-11",
-      status: "Approved",
-      prices: { basic: 16000, standard: 26000, premium: 36000, deluxe: 46000, ultimate: 62000 },
-      clientActivity: "green",
-      lastActivityUpdate: "2025-01-11 11:30",
-    },
-  ])
+  const [orders, setOrders] = useState<Order[]>([]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("orders");
+      if (stored) {
+        try {
+          const userOrders = JSON.parse(stored);
+          if (Array.isArray(userOrders)) {
+            setOrders(userOrders);
+          }
+        } catch {}
+      }
+    }
+  }, []);
 
   const navigationItems: NavigationItem[] = [
     { id: "dashboard", label: "New Requests", icon: <BarChart3 className="w-5 h-5" />, href: "/dashboard" },
@@ -168,8 +121,26 @@ export default function Orders() {
   }
 
   const handleStatusChange = (orderId: string, newStatus: "In-review" | "Approved" | "Canceled") => {
-    setOrders((prev) => prev.map((order) => (order.id === orderId ? { ...order, status: newStatus } : order)))
-  }
+    if (newStatus === "Canceled") {
+      if (window.confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
+        setOrders((prev) => {
+          const updated = prev.filter((order) => order.id !== orderId);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("orders", JSON.stringify(updated));
+          }
+          return updated;
+        });
+      }
+    } else {
+      setOrders((prev) => {
+        const updated = prev.map((order) => (order.id === orderId ? { ...order, status: newStatus } : order));
+        if (typeof window !== "undefined") {
+          localStorage.setItem("orders", JSON.stringify(updated));
+        }
+        return updated;
+      });
+    }
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {

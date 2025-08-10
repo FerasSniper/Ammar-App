@@ -1,4 +1,3 @@
-// app/dashboard/page.tsx
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
@@ -40,13 +39,7 @@ export default function Dashboard() {
   // Dashboard state
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  const [people, setPeople] = useState<Person[]>([
-    { id: "1", name: "Ahmed Al‑Rashid",  mobile: "+966501234567", email: "ahmed@example.com",  registeredAt: "2025‑01‑15" },
-    { id: "2", name: "Sara Al‑Mahmoud",  mobile: "+966502345678", email: "sara@example.com",   registeredAt: "2025‑01‑14" },
-    { id: "3", name: "Mohammed Al‑Zahra",mobile: "+966503456789", email: "mohammed@example.com",registeredAt: "2025‑01‑13" },
-    { id: "4", name: "Fatima Al‑Khalil", mobile: "+966504567890", email: "fatima@example.com", registeredAt: "2025‑01‑12" },
-    { id: "5", name: "Omar Al‑Fahd",    mobile: "+966505678901", email: "omar@example.com",    registeredAt: "2025‑01‑11" },
-  ]);
+  const [people, setPeople] = useState<Person[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -56,7 +49,7 @@ export default function Dashboard() {
   const [userImage, setUserImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // On mount, load user info from localStorage
+  // Load user info from localStorage on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("user");
@@ -67,6 +60,21 @@ export default function Dashboard() {
         setUserImage(parsed.avatar || null);
       }
     }
+  }, []);
+
+  // Fetch new requests from API on mount and refresh
+  useEffect(() => {
+    const fetchNewRequests = async () => {
+      try {
+        const res = await fetch('/api/new-requests');
+        if (!res.ok) throw new Error('Failed to fetch');
+        const data = await res.json();
+        setPeople(data);
+      } catch (error) {
+        console.error('Error fetching new requests:', error);
+      }
+    };
+    fetchNewRequests();
   }, []);
 
   // Handlers for table selection & refresh
@@ -81,15 +89,58 @@ export default function Dashboard() {
       prev.length === allIds.length ? [] : allIds
     );
   };
-  const handleRemoveSelected = () => {
-    setPeople(prev => prev.filter(p => !selectedItems.includes(p.id)));
-    setSelectedItems([]);
+  const handleRemoveSelected = async () => {
+    if (selectedItems.length === 0) return;
+    
+    if (!confirm(`Are you sure you want to delete ${selectedItems.length} client(s)? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      const res = await fetch('/api/new-requests', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientIds: selectedItems })
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to delete clients');
+      }
+      
+      const result = await res.json();
+      console.log('Delete successful:', result);
+      
+      // Remove from frontend state after successful backend deletion
+      setPeople(prev => prev.filter(p => !selectedItems.includes(p.id)));
+      setSelectedItems([]);
+      
+      alert(`Successfully deleted ${selectedItems.length} client(s)`);
+      
+    } catch (error) {
+      console.error('Error deleting clients:', error);
+      alert('Failed to delete clients. Please try again.');
+    }
   };
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await new Promise(r => setTimeout(r, 800));
-    setIsRefreshing(false);
+    try {
+      const res = await fetch('/api/new-requests');
+      if (!res.ok) throw new Error('Failed to refresh');
+      const data = await res.json();
+      setPeople(data);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
+
+  // Double-click handler to navigate to register page
+// In dashboard/page.tsx
+const handleDoubleClick = (clientId: number | string) => {
+  router.push(`/Register?id=${encodeURIComponent(clientId)}`);
+};
 
   // Upload avatar handler
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,7 +159,6 @@ export default function Dashboard() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Upload failed");
 
-      // Update preview & localStorage
       setUserImage(data.avatar);
       const stored = localStorage.getItem("user");
       if (stored) {
@@ -313,7 +363,11 @@ export default function Dashboard() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredPeople.map(person => (
-                    <tr key={person.id} className="hover:bg-gray-50 transition-colors">
+                    <tr
+                      key={person.id}
+                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      onDoubleClick={() => handleDoubleClick(person.id)}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <input
                           type="checkbox"
